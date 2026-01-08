@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stinky Mode Board</title>
+
+<style>
+/* --- GENERAL STYLES --- */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #ffffff;
+  color: #000000;
+  margin: 20px;
+}
+
+h1 {
+  color: #000;
+}
+
+label {
+  margin-right: 20px;
+}
+
+/* Dark mode */
+body.dark-mode {
+  background-color: #121212;
+  color: #f0f0f0;
+}
+
+body.dark-mode h1 {
+  color: #ffffff; /* Make the heading bright white in dark mode */
+}
+
+/* --- DARK MODE --- */
+body.dark-mode {
+  background-color: #121212;
+  color: #f0f0f0;
+}
+
+body.dark-mode select {
+  background-color: #1e1e1e;
+  color: #f0f0f0;
+  border: 1px solid #555;
+}
+
+/* --- SELECT DROPDOWNS --- */
+select {
+  padding: 4px;
+  margin-right: 10px;
+  background-color: #fff;
+  color: #000;
+  border: 1px solid #999;
+  border-radius: 4px;
+}
+
+/* --- FRETS --- */
+#fretboard {
+  margin-top: 20px;
+}
+
+.string {
+  display: flex;
+}
+
+.fret {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  position: relative;
+  background-color: #f0f0f0;
+}
+
+/* Dark mode fret */
+body.dark-mode .fret {
+  background-color: #1e1e1e;
+  border: 1px solid #555;
+}
+
+/* --- NOTES --- */
+.note {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.note.root {
+  background-color: #e53935;
+  color: white;
+}
+
+.note.unique {
+  background-color: #fbc02d;
+  color: black;
+}
+
+.note.normal {
+  background-color: #ff9800;
+  color: white;
+}
+
+.note.pentatonic {
+  background-color: #2196f3;
+  color: white;
+}
+
+/* --- FRET MARKERS --- */
+.fret::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: #000;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+}
+
+.fret[data-dot="single"]::after {
+  display: block;
+}
+
+.fret[data-dot="double"]::after {
+  display: block;
+  width: 6px;
+  height: 6px;
+  box-shadow: -6px 0 0 #000, 6px 0 0 #000;
+}
+
+/* Dark mode dots */
+body.dark-mode .fret::after {
+  background: #fff;
+  box-shadow: -6px 0 0 #fff, 6px 0 0 #fff;
+}
+</style>
+</head>
+<body>
+
+<h1>Stinky Mode Board</h1>
+
+<label>
+  Root note:
+  <select id="root">
+    <option>C</option>
+    <option>C#</option>
+    <option>D</option>
+    <option>D#</option>
+    <option>E</option>
+    <option>F</option>
+    <option>F#</option>
+    <option>G</option>
+    <option>G#</option>
+    <option>A</option>
+    <option>A#</option>
+    <option>B</option>
+  </select>
+</label>
+
+<label>
+  Mode:
+  <select id="mode">
+    <option>Aeolian</option>
+    <option>Locrian</option>
+    <option>Ionian</option>
+    <option>Dorian</option>
+    <option>Phrygian</option>
+    <option>Lydian</option>
+    <option>Mixolydian</option>
+  </select>
+</label>
+
+<label>
+  Dark Mode:
+  <input type="checkbox" id="darkModeToggle">
+</label>
+
+<div id="fretboard"></div>
+
+<script>
+// --- NOTES & MODES ---
+const NOTES = ["C", "C#", "D", "D#", "E", "F","F#", "G", "G#", "A", "A#", "B"];
+const MODES = {
+  Ionian:     [0, 2, 4, 5, 7, 9, 11],
+  Dorian:     [0, 2, 3, 5, 7, 9, 10],
+  Phrygian:   [0, 1, 3, 5, 7, 8, 10],
+  Lydian:     [0, 2, 4, 6, 7, 9, 11],
+  Mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  Aeolian:    [0, 2, 3, 5, 7, 8, 10],
+  Locrian:    [0, 1, 3, 5, 6, 8, 10]
+};
+const STRINGS = ["E", "A", "D", "G", "B", "E"];
+const FRETS = 16;
+
+const fretboard = document.getElementById("fretboard");
+const rootSelect = document.getElementById("root");
+const modeSelect = document.getElementById("mode");
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+  .then(() => console.log('Service Worker Registered'))
+  .catch(err => console.log('Service Worker Failed:', err));
+}
+
+// UTILITY FUNCTIONS
+function noteIndex(note){ return NOTES.indexOf(note); }
+function noteAtFret(openNote, fret){ return NOTES[(noteIndex(openNote)+fret)%12]; }
+function getScaleNotes(root, mode){ return MODES[mode].map(i=>NOTES[(noteIndex(root)+i)%12]); }
+function getUniqueNotes(root, mode){
+  const modeNotes = getScaleNotes(root, mode);
+  const majorNotes = getScaleNotes(root, "Ionian");
+  const minorNotes = getScaleNotes(root, "Aeolian");
+  return modeNotes.filter(n => !majorNotes.includes(n) && !minorNotes.includes(n));
+}
+
+// DRAW FRETBOARD
+function drawFretboard(){
+  fretboard.innerHTML = "";
+  const root = rootSelect.value;
+  const mode = modeSelect.value;
+  const scaleNotes = getScaleNotes(root, mode);
+  const uniqueNotes = getUniqueNotes(root, mode);
+
+  const flippedStrings = [...STRINGS].slice().reverse();
+
+  flippedStrings.forEach(stringNote=>{
+    const stringDiv = document.createElement("div");
+    stringDiv.className="string";
+
+    for(let fret=0;fret<=FRETS;fret++){
+      const fretDiv = document.createElement("div");
+      fretDiv.className="fret";
+
+      if(fret===0) fretDiv.style.borderRight="4px solid black";
+
+      // NOTES
+      const note = noteAtFret(stringNote,fret);
+      if(scaleNotes.includes(note)){
+        const noteDiv = document.createElement("div");
+        if(note===root) noteDiv.className="note root";
+        else if(uniqueNotes.includes(note)) noteDiv.className="note unique";
+        else noteDiv.className="note normal";
+        noteDiv.textContent=note;
+        fretDiv.appendChild(noteDiv);
+      }
+
+      stringDiv.appendChild(fretDiv);
+    }
+
+    fretboard.appendChild(stringDiv);
+  });
+}
+
+// EVENT LISTENERS
+rootSelect.addEventListener("change",drawFretboard);
+modeSelect.addEventListener("change",drawFretboard);
+
+// DARK MODE TOGGLE
+const darkModeToggle = document.getElementById("darkModeToggle");
+darkModeToggle.addEventListener("change",()=>{
+  if(darkModeToggle.checked) document.body.classList.add("dark-mode");
+  else document.body.classList.remove("dark-mode");
+});
+
+// INITIAL DRAW
+drawFretboard();
+</script>
+
+</body>
+</html>
