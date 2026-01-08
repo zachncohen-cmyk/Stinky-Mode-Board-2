@@ -205,12 +205,6 @@ const fretboard = document.getElementById("fretboard");
 const rootSelect = document.getElementById("root");
 const modeSelect = document.getElementById("mode");
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js')
-  .then(() => console.log('Service Worker Registered'))
-  .catch(err => console.log('Service Worker Failed:', err));
-}
-
 // UTILITY FUNCTIONS
 function noteIndex(note){ return NOTES.indexOf(note); }
 function noteAtFret(openNote, fret){ return NOTES[(noteIndex(openNote)+fret)%12]; }
